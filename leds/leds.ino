@@ -9,6 +9,7 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <Ticker.h> //for LED status
+#include <RemoteDebug.h>
 //#include <BlynkSimpleEsp8266.h>
 
 #define AP_NAME "WELCOME_ICROCO_LEDS"
@@ -21,6 +22,7 @@ Ticker ticker;
 bool shouldSaveConfig = false;  // flag for saving data
 std::unique_ptr<ESP8266WebServer> server;
 WiFiManager wifiManager;
+RemoteDebug debug;
 
 void tick()
 {
@@ -28,6 +30,17 @@ void tick()
   int state = digitalRead(LED_BUILTIN);  // get the current state of GPIO1 pin
   digitalWrite(LED_BUILTIN, !state);     // set pin to the opposite state
 }
+#include <RemoteDebug.h>
+
+
+void setupRemoteDebug() {
+  debug.begin(host_name); // Initiaze the telnet server - HOST_NAME is the used in MDNS.begin
+  debug.setResetCmdEnabled(true); // Enable the reset command
+  debug.setSerialEnabled(true);
+  // debug.showTime(true); // To show time
+  // debug.showProfiler(true); // To show profiler - time between messages of Debug
+}
+
 
 //gets called when WiFiManager enters configuration mode
 void configModeCallback (WiFiManager *myWiFiManager) {
@@ -97,6 +110,7 @@ void saveConfigCallback () {
 }
 
 void handleNotFound() {
+  debug.printf("URI not found: %s\n", server->uri().c_str()); // OR
   String message = "File Not Found\n\n";
   message += "URI: ";
   message += server->uri();
@@ -119,11 +133,13 @@ void setupWebServer() {
   server.reset(new ESP8266WebServer(WiFi.localIP(), 80));
   server->on("/", handleRoot);
 
-    server->on("/reset", []() {
-      wifiManager.resetSettings();
-      server->send(200, "text/plain", "reset and reconfig");
-    });
-  
+  server->on("/reset", []() {
+    wifiManager.resetSettings();
+    delay(1000);
+    ESP.reset();
+    server->send(200, "text/plain", "reset and reconfig");
+  });
+
   server->on("/inline", []() {
     server->send(200, "text/plain", "this works as well");
   });
@@ -162,7 +178,7 @@ void setup() {
   wifiManager.setAPCallback(configModeCallback);          //set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
   wifiManager.setSaveConfigCallback(saveConfigCallback);  //set config save notify callback
   wifiManager.setTimeout(600);                            // 10 minutes to enter data and then Wemos resets to try again.
-  
+
   //fetches ssid and pass and tries to connect
   //if it does not connect it starts an access point with the specified name
   //here  "AutoConnectAP"
@@ -185,15 +201,17 @@ void setup() {
 
   saveConfig();
   setupWebServer();
+  setupRemoteDebug();
 
   if (!MDNS.begin(host_name)) {
     Serial.println("Error setting up MDNS responder!");
   }
   MDNS.addService("http", "tcp", 80);
+  MDNS.addService("telnet", "tcp", 23);
 
   ArduinoOTA.setHostname(host_name); // on donne une petit nom a notre module
   ArduinoOTA.begin(); // initialisation de l'OTA
-  
+
   digitalWrite(LED_BUILTIN, HIGH);  //keep LED on
 }//end setup
 
@@ -201,7 +219,8 @@ long t1 = millis();
 
 void loop() {
   server->handleClient();
-  ArduinoOTA.handle(); 
+  ArduinoOTA.handle();
+  debug.handle();
 }//end loop
 
 
