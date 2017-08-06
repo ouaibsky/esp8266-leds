@@ -6,7 +6,10 @@
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 #include <WiFiManager.h> //https://github.com/tzapu/WiFiManager
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
 #include <Ticker.h> //for LED status
+//#include <BlynkSimpleEsp8266.h>
 
 #define AP_NAME "WELCOME_ICROCO_LEDS"
 #define LED_BUILTIN 2   // looks like esp-12E as builtin led on pin 2 (not pin 1 as for ESP-01)
@@ -158,7 +161,8 @@ void setup() {
 
   wifiManager.setAPCallback(configModeCallback);          //set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
   wifiManager.setSaveConfigCallback(saveConfigCallback);  //set config save notify callback
-
+  wifiManager.setTimeout(600);                            // 10 minutes to enter data and then Wemos resets to try again.
+  
   //fetches ssid and pass and tries to connect
   //if it does not connect it starts an access point with the specified name
   //here  "AutoConnectAP"
@@ -186,6 +190,10 @@ void setup() {
     Serial.println("Error setting up MDNS responder!");
   }
   MDNS.addService("http", "tcp", 80);
+
+  ArduinoOTA.setHostname(host_name); // on donne une petit nom a notre module
+  ArduinoOTA.begin(); // initialisation de l'OTA
+  
   digitalWrite(LED_BUILTIN, HIGH);  //keep LED on
 }//end setup
 
@@ -193,6 +201,7 @@ long t1 = millis();
 
 void loop() {
   server->handleClient();
+  ArduinoOTA.handle(); 
 }//end loop
 
 
