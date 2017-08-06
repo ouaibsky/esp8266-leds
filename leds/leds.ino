@@ -10,19 +10,11 @@
 #include <ArduinoOTA.h>
 #include <Ticker.h> //for LED status
 #include <RemoteDebug.h>
+#include "FastLED.h"
+#include "Lights.h"
 //#include <BlynkSimpleEsp8266.h>
 
-#define AP_NAME "WELCOME_ICROCO_LEDS"
-#define LED_BUILTIN 2   // looks like esp-12E as builtin led on pin 2 (not pin 1 as for ESP-01)
-#define CONFIG_FILE_NAME "/config.json"
-
-char host_name[68] = "icrocoled1";
-char blynk_token[33] = "YOUR_BLYNK_TOKEN";
-Ticker ticker;
-bool shouldSaveConfig = false;  // flag for saving data
-std::unique_ptr<ESP8266WebServer> server;
-WiFiManager wifiManager;
-RemoteDebug debug;
+#include "Common.h"
 
 void tick()
 {
@@ -126,12 +118,12 @@ void handleNotFound() {
 }
 
 void handleRoot() {
-  server->send(200, "text/plain", "hello from esp8266!");
+//  server->send(200, "text/plain", "hello from esp8266!");
 }
 
 void setupWebServer() {
   server.reset(new ESP8266WebServer(WiFi.localIP(), 80));
-  server->on("/", handleRoot);
+  //server->on("/", handleRoot);
 
   server->on("/reset", []() {
     wifiManager.resetSettings();
@@ -140,8 +132,8 @@ void setupWebServer() {
     server->send(200, "text/plain", "reset and reconfig");
   });
 
-  server->on("/inline", []() {
-    server->send(200, "text/plain", "this works as well");
+  server->on("/hello", []() {
+    server->send(200, "text/plain", "hello from esp8266!");
   });
 
   server->onNotFound(handleNotFound);
@@ -152,6 +144,8 @@ void setupWebServer() {
 
 void setup() {
   Serial.begin(115200);
+  delay(100);
+
   if (!SPIFFS.begin()) {
     Serial.println("Failed to mount file system");
     return;
@@ -211,6 +205,7 @@ void setup() {
 
   ArduinoOTA.setHostname(host_name); // on donne une petit nom a notre module
   ArduinoOTA.begin(); // initialisation de l'OTA
+  setupFastLed();
 
   digitalWrite(LED_BUILTIN, HIGH);  //keep LED on
 }//end setup
@@ -221,6 +216,7 @@ void loop() {
   server->handleClient();
   ArduinoOTA.handle();
   debug.handle();
+  loopLeds();
 }//end loop
 
 
