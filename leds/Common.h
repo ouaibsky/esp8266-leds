@@ -1,5 +1,5 @@
-#ifndef __INC_COMMON_CUBE_H
-#define __INC_COMMON_CUBE_H
+#ifndef __INC_COMMON_H
+#define __INC_COMMON_H
 
 #include <EEPROM.h>
 

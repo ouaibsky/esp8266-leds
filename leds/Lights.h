@@ -10,11 +10,11 @@ FASTLED_USING_NAMESPACE
 #include "GradientPalettes.h"
 
 #define DATA_PIN      5     // for Huzzah: Pins w/o special function:  #4, #5, #12, #13, #14; // #16 does not work :(
-#define LED_TYPE      WS2812
+#define LED_TYPE      WS2812B
 #define COLOR_ORDER   GRB
-#define NUM_LEDS      24
+#define NUM_LEDS      150
 
-#define MILLI_AMPS         2000     // IMPORTANT: set here the max milli-Amps of your power supply 5V 2A = 2000
+#define MILLI_AMPS         5000     // IMPORTANT: set here the max milli-Amps of your power supply 5V 2A = 2000
 #define FRAMES_PER_SECOND  120 // here you can control the speed. With the Access Point / Web Server the animations run a bit slower.
 
 CRGB leds[NUM_LEDS];
@@ -30,7 +30,7 @@ uint8_t brightness = brightnessMap[brightnessIndex];
 
 // ten seconds per color palette makes a good demo
 // 20-120 is better for deployment
-#define SECONDS_PER_PALETTE 10
+#define SECONDS_PER_PALETTE 30
 
 ///////////////////////////////////////////////////////////////////////
 
@@ -59,7 +59,10 @@ uint8_t gHue = 0; // rotating "base color" used by many of the patterns
 CRGB solidColor = CRGB::Blue;
 
 uint8_t power = 1;
-
+//// inoise8_mover
+static int16_t dist; // A moving location for our noise generator.
+uint16_t xscale = 30;                                         // Wouldn't recommend changing this on the fly, or the animation will be really blocky.
+uint16_t yscale = 30;
 
 typedef void (*Pattern)();
 typedef struct {
@@ -80,6 +83,7 @@ void sinelon();
 void juggle();
 void bpm();
 void showSolidColor();
+void inoise8_mover();
 
 // List of patterns to cycle through.  Each is defined as a separate function below.
 PatternAndNameList patterns = {
@@ -92,6 +96,7 @@ PatternAndNameList patterns = {
   { sinelon, "Sinelon" },
   { juggle, "Juggle" },
   { bpm, "BPM" },
+  { inoise8_mover, "Noisy"},
   { showSolidColor, "Solid Color" },
 };
 
@@ -517,6 +522,22 @@ void colorwaves()
   }
 }
 
+//https://gist.github.com/atuline/1b427f2539dac396d5bb8a4265712255
+void inoise8_mover() {
+  fadeToBlackBy(leds, NUM_LEDS, 16);
+
+  for (int i = 0; i < 20; i++) {
+    uint8_t locn = inoise8(xscale, dist + yscale + i * 200); // Get a new pixel location from moving noise. locn rarely goes below 48 or above 192, so let's remove those ends.
+    locn = constrain(locn, 48, 192);                    // Ensure that the occasional value outside those limits is not used.
+    uint8_t pixlen = map(locn, 48, 192, 0, NUM_LEDS - 1); // Map doesn't constrain, so we now map locn to the the length of the strand.
+    leds[pixlen] = ColorFromPalette(gCurrentPalette, pixlen, 255, LINEARBLEND);   // Use that value for both the location as well as the palette index colour for the pixel.
+  }
+
+  dist += beatsin8(10, 1, 4);                                              // Moving along the distance (that random number we started out with). Vary it a bit with a sine wave.
+
+
+} // inoise8_mover()
+
 // Alternate rendering function just scrolls the current palette
 // across the defined LED strip.
 void palettetest()
@@ -530,7 +551,7 @@ void palettetest()
 void setupFastLed(void) {
   ////  Serial.begin(115200);
   //  delay(100);
-  Serial.setDebugOutput(true);
+  Serial.setDebugOutput(false);
 
   FastLED.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);         // for WS2812 (Neopixel)
   //FastLED.addLeds<LED_TYPE,DATA_PIN,CLK_PIN,COLOR_ORDER>(leds, NUM_LEDS); // for APA102 (Dotstar)
@@ -544,7 +565,7 @@ void setupFastLed(void) {
   loadSettings();
 
   FastLED.setBrightness(brightness);
-
+  dist = random16(12345); // A semi-random number for our noise generator
   //  Serial.println();
   //  Serial.print( F("Heap: ") ); Serial.println(system_get_free_heap_size());
   //  Serial.print( F("Boot Vers: ") ); Serial.println(system_get_boot_version());

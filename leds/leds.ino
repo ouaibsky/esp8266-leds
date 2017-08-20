@@ -118,7 +118,7 @@ void handleNotFound() {
 }
 
 void handleRoot() {
-//  server->send(200, "text/plain", "hello from esp8266!");
+  //  server->send(200, "text/plain", "hello from esp8266!");
 }
 
 void setupWebServer() {
@@ -145,6 +145,11 @@ void setupWebServer() {
 void setup() {
   Serial.begin(115200);
   delay(100);
+
+  // Set Hostname.
+  //  String wifiAP(AP_NAME);
+  //  wifiAP += String(ESP.getChipId(), HEX);
+  //  WiFi.hostname(wifiAP);
 
   if (!SPIFFS.begin()) {
     Serial.println("Failed to mount file system");
@@ -202,12 +207,17 @@ void setup() {
   }
   MDNS.addService("http", "tcp", 80);
   MDNS.addService("telnet", "tcp", 23);
+  MDNS.addServiceTxt("http", "tcp", "iCroco-Product-name", "Home Lights");
+  MDNS.addServiceTxt("http", "tcp", "iCroco-Product-Version", "1.2.3");
 
   ArduinoOTA.setHostname(host_name); // on donne une petit nom a notre module
   ArduinoOTA.begin(); // initialisation de l'OTA
   setupFastLed();
 
-  digitalWrite(LED_BUILTIN, HIGH);  //keep LED on
+  //  Blynk.config(blynk_token);
+  //  Blynk.connect();
+
+  digitalWrite(LED_BUILTIN, LOW);  //keep LED on
 }//end setup
 
 long t1 = millis();
@@ -216,6 +226,7 @@ void loop() {
   server->handleClient();
   ArduinoOTA.handle();
   debug.handle();
+  //    Blynk.run(); // Initiates Blynk
   loopLeds();
 }//end loop
 
